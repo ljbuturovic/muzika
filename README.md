@@ -12,19 +12,19 @@ pipx install muziqa
 
 ## Usage
 
-Point it at a folder of MP3 files:
+Point it at a folder of music files (MP3, FLAC, WAV):
 
 ```
-$ muziqa --mp3 /path/to/music
+$ muziqa --folder /path/to/music
 ```
 
-This reads the ID3 tags from every `.mp3` file in the folder and saves a bar chart to `artists.png` in the current directory.
+This reads the tags from every supported file in the folder and saves a bar chart to `artists.png` in the current directory.
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--mp3 DIR` | Directory of MP3 files (reads ID3 tags) |
+| `--folder DIR` | Directory of MP3/FLAC/WAV files (reads tags) |
 | `--artists FILE` | Path to a plain-text `artists.txt` file instead |
 | `--output FILE` | Output image filename (default: `artists.png`) |
 | `--top N` | Number of top artists to show (default: 20) |
@@ -32,7 +32,7 @@ This reads the ID3 tags from every `.mp3` file in the folder and saves a bar cha
 ### Examples
 
 ```
-$ muziqa --mp3 ~/Music
-$ muziqa --mp3 ~/Music --top 30 --output top30.png
+$ muziqa --folder ~/Music
+$ muziqa --folder ~/Music --top 30 --output top30.png
 $ muziqa --artists artists.txt
 ```

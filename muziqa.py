@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Analyze artists from artists.txt or directly from MP3 ID3 tags.
+"""Analyze artists from artists.txt or directly from MP3/FLAC/WAV tags.
 
 Usage:
-  analyze_artists.py --artists artists.txt
-  analyze_artists.py --mp3 /path/to/music/dir
+  muziqa --artists artists.txt
+  muziqa --folder /path/to/music/dir
 """
 
 import argparse
@@ -29,26 +29,42 @@ def parse_artists_txt(filepath: str) -> Counter:
     return counts
 
 
-def parse_artists_mp3(directory: str) -> Counter:
+def parse_artists_folder(directory: str) -> Counter:
     from mutagen.id3 import ID3, ID3NoHeaderError
+    from mutagen.flac import FLAC
+    from mutagen.wave import WAVE
 
     counts: Counter = Counter()
-    mp3_files = list(Path(directory).glob("*.mp3"))
-    if not mp3_files:
-        print(f"No MP3 files found in {directory}")
+    folder = Path(directory)
+    files = [
+        p for ext in ("*.mp3", "*.flac", "*.wav")
+        for p in folder.glob(ext)
+    ]
+    if not files:
+        print(f"No MP3/FLAC/WAV files found in {directory}")
         sys.exit(1)
 
-    print(f"Reading ID3 tags from {len(mp3_files):,} files…", flush=True)
-    for path in mp3_files:
+    print(f"Reading tags from {len(files):,} files…", flush=True)
+    for path in files:
         try:
-            tags = ID3(path)
-            artist = tags.get("TPE1")  # Lead artist / band
-            if artist:
-                name = str(artist).strip()
-                if name:
-                    counts[name] += 1
+            suffix = path.suffix.lower()
+            if suffix == ".mp3":
+                tags = ID3(path)
+                artist = tags.get("TPE1")
+                name = str(artist).strip() if artist else ""
+            elif suffix == ".flac":
+                tags = FLAC(path)
+                name = (tags.get("artist") or [""])[0].strip()
+            elif suffix == ".wav":
+                tags = WAVE(path)
+                artist = tags.tags and tags.tags.get("TPE1")
+                name = str(artist).strip() if artist else ""
+            else:
+                continue
+            if name:
+                counts[name] += 1
         except ID3NoHeaderError:
-            pass  # No ID3 header — skip silently
+            pass
         except Exception:
             pass
 
@@ -120,18 +136,21 @@ def plot_top20(counts: Counter, output: str = "artists.png", top: int = 20) -> N
 
 
 def main() -> None:
+    from importlib.metadata import version as pkg_version
+    v = pkg_version("muziqa")
     parser = argparse.ArgumentParser(
-        description="Plot top 20 artists from artists.txt or MP3 ID3 tags."
+        description=f"muziqa {v} — plot top artists from a music folder (MP3/FLAC/WAV) or artists.txt"
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {v}")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--artists", metavar="FILE", help="Path to artists.txt")
-    group.add_argument("--mp3", metavar="DIR", help="Directory of MP3 files (reads ID3 tags)")
+    group.add_argument("--folder", metavar="DIR", help="Directory of MP3/FLAC/WAV files (reads tags)")
     parser.add_argument("--output", metavar="FILE", default="artists.png", help="Output image file (default: artists.png)")
     parser.add_argument("--top", metavar="N", type=int, default=20, help="Number of top artists to plot (default: 20)")
     args = parser.parse_args()
 
-    if args.mp3:
-        counts = parse_artists_mp3(args.mp3)
+    if args.folder:
+        counts = parse_artists_folder(args.folder)
     else:
         counts = parse_artists_txt(args.artists)
 
