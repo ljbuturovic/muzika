@@ -10,29 +10,32 @@ Usage:
 import argparse
 import re
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 
-def parse_artists_txt(filepath: str) -> tuple[Counter, Counter]:
+def parse_artists_txt(filepath: str) -> tuple[Counter, Counter, dict[str, int]]:
     artist_pattern = re.compile(r"Artist:\s*(.+?)\s*,\s*Year:")
     year_pattern = re.compile(r"Year:\s*(\d{4})")
     artists: Counter = Counter()
     years: Counter = Counter()
+    year_artists: defaultdict[str, set] = defaultdict(set)
     with open(filepath, encoding="utf-8") as f:
         for line in f:
-            m = artist_pattern.search(line)
-            if m:
-                name = m.group(1).strip()
+            artist_match = artist_pattern.search(line)
+            year_match = year_pattern.search(line)
+            name = artist_match.group(1).strip() if artist_match else ""
+            year = year_match.group(1) if year_match else ""
+            if name:
+                artists[name] += 1
+            if year:
+                years[year] += 1
                 if name:
-                    artists[name] += 1
-            m = year_pattern.search(line)
-            if m:
-                years[m.group(1)] += 1
-    return artists, years
+                    year_artists[year].add(name)
+    return artists, years, {y: len(s) for y, s in year_artists.items()}
 
 
 def _collect_files(folder: Path, recursive: bool) -> list[Path]:
@@ -80,9 +83,10 @@ def _read_tags(path: Path) -> tuple[str, str]:
     return artist, year
 
 
-def parse_artists_folder(directory: str, recursive: bool = False) -> tuple[Counter, Counter]:
+def parse_artists_folder(directory: str, recursive: bool = False) -> tuple[Counter, Counter, dict[str, int]]:
     artists: Counter = Counter()
     years: Counter = Counter()
+    year_artists: defaultdict[str, set] = defaultdict(set)
     files = _collect_files(Path(directory), recursive)
     if not files:
         print(f"No MP3/FLAC/WAV/M4A/OGG files found in {directory}")
@@ -95,8 +99,10 @@ def parse_artists_folder(directory: str, recursive: bool = False) -> tuple[Count
             artists[artist] += 1
         if year.isdigit() and len(year) == 4:
             years[year] += 1
+            if artist:
+                year_artists[year].add(artist)
 
-    return artists, years
+    return artists, years, {y: len(s) for y, s in year_artists.items()}
 
 
 def _style_ax(ax) -> None:
@@ -113,6 +119,7 @@ def _style_ax(ax) -> None:
 def plot_charts(
     artists: Counter,
     years: Counter,
+    year_unique: dict[str, int],
     output: str = "muziqa.png",
     top: int = 20,
 ) -> None:
@@ -171,6 +178,32 @@ def plot_charts(
     ax_years.tick_params(axis="x", length=0, colors="#e0e0e0")
     ax_years.spines["left"].set_visible(False)
 
+    # 5-year rolling average of mean tracks per unique artist (twin axis)
+    mean_vals = [
+        years[yr] / year_unique[yr] if year_unique.get(yr) else None
+        for yr in yr_labels
+    ]
+    window = 5
+    rolled = []
+    for i in range(y_n):
+        window_vals = [v for v in mean_vals[max(0, i - window // 2):i + window // 2 + 1] if v is not None]
+        rolled.append(sum(window_vals) / len(window_vals) if window_vals else None)
+
+    ax_mean = ax_years.twinx()
+    ax_mean.set_facecolor("none")
+    ax_mean.plot(
+        range(y_n), rolled,
+        color="#00e5ff", linewidth=2.5,
+        label="5-yr rolling avg tracks / artist", zorder=5,
+    )
+    ax_mean.set_ylabel("Mean tracks per artist", labelpad=8, color="#00e5ff")
+    ax_mean.tick_params(axis="y", colors="#00e5ff", labelsize=9, length=0)
+    ax_mean.spines["top"].set_visible(False)
+    ax_mean.spines["left"].set_visible(False)
+    ax_mean.spines["bottom"].set_visible(False)
+    ax_mean.spines["right"].set_color("#00e5ff")
+    ax_mean.spines["right"].set_alpha(0.4)
+
     ax_years.set_title(
         f"Tracks by Year  ·  {len(years):,} years",
         fontsize=13, fontweight="bold", color="#c8c8e0", pad=14,
@@ -197,15 +230,15 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.artists:
-        artists, years = parse_artists_txt(args.artists)
+        artists, years, year_unique = parse_artists_txt(args.artists)
     else:
-        artists, years = parse_artists_folder(args.folder, recursive=not args.flat)
+        artists, years, year_unique = parse_artists_folder(args.folder, recursive=not args.flat)
 
     if not artists:
         print("No artist data found.")
         sys.exit(1)
 
-    plot_charts(artists, years, args.output, args.top)
+    plot_charts(artists, years, year_unique, args.output, args.top)
 
 
 if __name__ == "__main__":

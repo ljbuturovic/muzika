@@ -1,8 +1,10 @@
 # muziqa
 
-Analyze your music collection and plot two side-by-side charts: top artists and tracks by year.
+Analyze your music collection and generate two side-by-side charts:
+- **Top artists** by track count
+- **Tracks by year**, with a 5-year rolling average of mean tracks per artist
 
-![Top 20 Artists chart](muziqa.png)
+![muziqa chart](muziqa.png)
 
 ## Install
 
@@ -12,21 +14,22 @@ pipx install muziqa
 
 ## Usage
 
-Point it at a folder of music files (MP3, FLAC, WAV):
+Point it at a folder of music files:
 
 ```
 $ muziqa /path/to/music
 ```
 
-This reads the tags from every supported file in the folder (and all subfolders) and saves a bar chart to `muziqa.png` in the current directory.
+Reads tags from all supported files in the folder and subfolders, and saves the chart to `muziqa.png` in the current directory.
+
+Supported formats: **MP3, FLAC, WAV, M4A, OGG**
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `DIR` | Directory of MP3/FLAC/WAV/M4A/OGG files (reads tags) |
+| `DIR` | Directory of music files to analyze |
 | `--flat` | Search only the given folder, not subfolders |
-| `--artists FILE` | Path to a plain-text `artists.txt` file instead |
 | `--output FILE` | Output image filename (default: `muziqa.png`) |
 | `--top N` | Number of top artists to show (default: 20) |
 
@@ -36,5 +39,4 @@ This reads the tags from every supported file in the folder (and all subfolders)
 $ muziqa ~/Music
 $ muziqa ~/Music --flat
 $ muziqa ~/Music --top 30 --output top30.png
-$ muziqa ~/Music --artists artists.txt
 ```
