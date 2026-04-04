@@ -4,10 +4,10 @@ Analyze your music collection and plot two side-by-side charts: top artists and 
 
 ![Top 20 Artists chart](muziqa.png)
 
-## Install
+## Install (Linux/Mac)
 
 ```
-pipx install muziqa
+$ pipx install muziqa
 ```
 
 ## Usage
