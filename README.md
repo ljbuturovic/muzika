@@ -1,6 +1,6 @@
 # muziqa
 
-Analyze your music collection and generate interesting charts:
+Analyze your MP3 music collection and generate interesting charts:
 - **Top artists** by track count
 - **Tracks by decades**
 - **Tracks by year**, with a 5-year rolling average of mean tracks per artist
